@@ -1,0 +1,184 @@
+// LoyalStamp data model. See ARCHITECTURE.md for the reasoning behind each table.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
+enum ProductStatus {
+  UNUSED
+  CLAIMED
+}
+
+enum LedgerReason {
+  PURCHASE_CLAIM // points earned by claiming a coupon
+  REWARD_SPEND // points spent on a reward (negative delta)
+  REWARD_REFUND // points returned when a reward claim is cancelled
+  ADJUSTMENT // manual admin correction (returns, mistakes)
+}
+
+enum RewardClaimStatus {
+  PENDING
+  FULFILLED
+  CANCELLED
+}
+
+enum AuditCategory {
+  AUDIT // normal event (login, import, claim, admin action)
+  FRAUD_FLAG // suspicious activity raised for admin review
+}
+
+enum FlagStatus {
+  OPEN
+  DISMISSED
+  CONFIRMED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  role         Role       @default(CUSTOMER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  claimedProducts Product[]
+  ledgerEntries   PointsLedgerEntry[]
+  rewardClaims    RewardClaim[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+// One row per physical box. The coupon is stored as an HMAC hash, never in plain text.
+model Product {
+  productId   String        @id @map("product_id")
+  sku         String
+  name        String
+  pointsValue Int           @map("points_value")
+  couponHash  String        @unique @map("coupon_hash")
+  status      ProductStatus @default(UNUSED)
+  claimedById String?       @map("claimed_by")
+  claimedAt   DateTime?     @map("claimed_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  claimedBy   User?              @relation(fields: [claimedById], references: [id])
+  invoiceItem InvoiceItem?
+  ledgerEntry PointsLedgerEntry?
+
+  @@index([sku])
+  @@index([status])
+  @@map("products")
+}
+
+model Invoice {
+  invoiceId     String   @id @default(cuid()) @map("invoice_id")
+  invoiceNo     String   @unique @map("invoice_no")
+  customerEmail String?  @map("customer_email")
+  customerPhone String?  @map("customer_phone")
+  invoiceDate   DateTime @map("invoice_date")
+  totalAmount   Decimal? @map("total_amount") @db.Decimal(12, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  items InvoiceItem[]
+
+  @@map("invoices")
+}
+
+// Links an invoice to the product units sold on it.
+// productId is the primary key, so a unit can appear on only one invoice.
+model InvoiceItem {
+  productId String @id @map("product_id")
+  invoiceId String @map("invoice_id")
+
+  product Product @relation(fields: [productId], references: [productId])
+  invoice Invoice @relation(fields: [invoiceId], references: [invoiceId])
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+// Append-only. Balance = SUM(delta) per user. Never update or delete rows.
+model PointsLedgerEntry {
+  id            String       @id @default(cuid())
+  userId        String       @map("user_id")
+  delta         Int
+  reason        LedgerReason
+  productId     String?      @unique @map("product_id") // at most one credit per unit
+  rewardClaimId String?      @unique @map("reward_claim_id")
+  note          String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  user        User         @relation(fields: [userId], references: [id])
+  product     Product?     @relation(fields: [productId], references: [productId])
+  rewardClaim RewardClaim? @relation(fields: [rewardClaimId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("points_ledger")
+}
+
+model Reward {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  pointsCost  Int      @map("points_cost")
+  stock       Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  claims RewardClaim[]
+
+  @@map("rewards")
+}
+
+model RewardClaim {
+  id          String            @id @default(cuid())
+  userId      String            @map("user_id")
+  rewardId    String            @map("reward_id")
+  pointsSpent Int               @map("points_spent")
+  status      RewardClaimStatus @default(PENDING)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  fulfilledAt DateTime?         @map("fulfilled_at")
+
+  user        User               @relation(fields: [userId], references: [id])
+  reward      Reward             @relation(fields: [rewardId], references: [id])
+  ledgerEntry PointsLedgerEntry?
+
+  @@index([status])
+  @@index([userId])
+  @@map("reward_claims")
+}
+
+// Audit trail, fraud flags, and failed-attempt records used for rate limiting.
+model AuditLog {
+  id         String        @id @default(cuid())
+  actorId    String?       @map("actor_id")
+  category   AuditCategory @default(AUDIT)
+  action     String // e.g. CLAIM_SUCCESS, CLAIM_FAILED, IMPORT_PRODUCTS, MANY_FAILURES
+  details    Json?
+  ip         String?
+  flagStatus FlagStatus? @map("flag_status") // only set when category = FRAUD_FLAG
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([action, createdAt])
+  @@index([actorId, createdAt])
+  @@index([ip, createdAt])
+  @@index([category, flagStatus])
+  @@map("audit_logs")
+}
