@@ -51,3 +51,4 @@ TODO (admin and customer accounts, added after seeding)
 - [ASSUMPTIONS.md](ASSUMPTIONS.md)
 - ARCHITECTURE.md (TODO)
 - [AI_LOG.md](AI_LOG.md)
+
