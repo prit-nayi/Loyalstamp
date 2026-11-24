@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getBalance, getHistory } from "@/services/ledgerService";
@@ -40,6 +41,9 @@ export default async function DashboardPage() {
           <p className="font-display text-5xl font-bold" style={{ color: "var(--stamp)" }}>
             {balance}
           </p>
+          <Link href="/dashboard/rewards" className="btn-secondary mt-4 inline-block">
+            Browse rewards
+          </Link>
         </section>
 
         <section className="rounded-lg border bg-white p-6" style={{ borderColor: "var(--line)" }}>

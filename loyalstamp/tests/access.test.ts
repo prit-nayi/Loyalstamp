@@ -57,3 +57,19 @@ describe("fraud flag endpoints", () => {
     expect(checkAccess("/api/admin/fraud-flags", { role: "ADMIN" })).toBe("allow");
   });
 });
+
+describe("reward endpoints and pages", () => {
+  it("customer reward routes need login", () => {
+    expect(checkAccess("/api/rewards", null)).toBe("unauthenticated");
+    expect(checkAccess("/api/rewards/abc/claim", null)).toBe("unauthenticated");
+    expect(checkAccess("/dashboard/rewards", null)).toBe("unauthenticated");
+    expect(checkAccess("/api/rewards/abc/claim", { role: "CUSTOMER" })).toBe("allow");
+  });
+  it("reward management is admin only", () => {
+    expect(checkAccess("/api/admin/rewards", { role: "CUSTOMER" })).toBe("forbidden");
+    expect(checkAccess("/api/admin/reward-claims/abc", { role: "CUSTOMER" })).toBe("forbidden");
+    expect(checkAccess("/admin/rewards", { role: "CUSTOMER" })).toBe("forbidden");
+    expect(checkAccess("/admin/claims", null)).toBe("unauthenticated");
+    expect(checkAccess("/admin/claims", { role: "ADMIN" })).toBe("allow");
+  });
+});
