@@ -1,0 +1,3 @@
+product_id,sku,name,points_value,coupon_code
+SAMPLE-0001,TEA-250,Green Tea 250g,10,SAMPLE-COUPON-0001
+SAMPLE-0002,TEA-250,Green Tea 250g,10,SAMPLE-COUPON-0002

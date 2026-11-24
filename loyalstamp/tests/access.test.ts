@@ -34,3 +34,18 @@ describe("checkAccess", () => {
     expect(checkAccess("/administrator", null)).toBe("allow");
   });
 });
+
+describe("admin import endpoints", () => {
+  it("are closed to customers and anonymous visitors", () => {
+    expect(checkAccess("/api/admin/import/products", { role: "CUSTOMER" })).toBe("forbidden");
+    expect(checkAccess("/api/admin/import/invoices", null)).toBe("unauthenticated");
+    expect(checkAccess("/admin/import", { role: "CUSTOMER" })).toBe("forbidden");
+  });
+});
+
+describe("claim endpoint", () => {
+  it("requires login", () => {
+    expect(checkAccess("/api/claim", null)).toBe("unauthenticated");
+    expect(checkAccess("/api/claim", { role: "CUSTOMER" })).toBe("allow");
+  });
+});
