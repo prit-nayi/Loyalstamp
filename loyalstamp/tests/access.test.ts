@@ -49,3 +49,11 @@ describe("claim endpoint", () => {
     expect(checkAccess("/api/claim", { role: "CUSTOMER" })).toBe("allow");
   });
 });
+
+describe("fraud flag endpoints", () => {
+  it("are admin only", () => {
+    expect(checkAccess("/api/admin/fraud-flags", { role: "CUSTOMER" })).toBe("forbidden");
+    expect(checkAccess("/api/admin/fraud-flags/abc123", null)).toBe("unauthenticated");
+    expect(checkAccess("/api/admin/fraud-flags", { role: "ADMIN" })).toBe("allow");
+  });
+});
