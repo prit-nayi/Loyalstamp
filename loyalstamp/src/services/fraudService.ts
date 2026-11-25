@@ -193,7 +193,7 @@ export async function listFlags(status: FlagStatusFilter = "OPEN", limit = 100) 
     where: { category: "FRAUD_FLAG", ...(status === "ALL" ? {} : { flagStatus: status }) },
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { actor: { select: { id: true, email: true, status: true } } },
+    include: { actor: { select: { id: true, email: true, status: true, role: true } } },
   });
   return rows.map((r) => ({
     id: r.id,

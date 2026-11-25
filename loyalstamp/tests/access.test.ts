@@ -73,3 +73,13 @@ describe("reward endpoints and pages", () => {
     expect(checkAccess("/admin/claims", { role: "ADMIN" })).toBe("allow");
   });
 });
+
+describe("monitoring pages", () => {
+  it("dashboard, fraud and audit pages are admin only", () => {
+    for (const path of ["/admin", "/admin/fraud", "/admin/audit"]) {
+      expect(checkAccess(path, { role: "CUSTOMER" })).toBe("forbidden");
+      expect(checkAccess(path, null)).toBe("unauthenticated");
+      expect(checkAccess(path, { role: "ADMIN" })).toBe("allow");
+    }
+  });
+});
