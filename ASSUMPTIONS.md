@@ -54,6 +54,8 @@ The assignment leaves several gaps in the requirements. This file lists every ga
 | A26 | **Rate limiting** per user and per IP, plus a temporary lockout after repeated failed attempts. | Reduces brute-force guessing of coupons and invoice numbers. |
 | A27 | Suspicious activity (many failed attempts, many accounts from one IP, unusually high claim volume) creates a **flag for admin review**. It does not silently block. Flags are stored in `audit_logs` with a `type`, not in a separate table. | Keeps the schema small and lets the owner decide. |
 | A28 | We claim fraud is **greatly reduced, not eliminated**. A person who has both the invoice number and the coupon from the same box is treated as the legitimate buyer. | An honest limit. The software cannot tell a buyer from someone given both items. |
+| A43 | Fraud limits are configurable through environment variables. The defaults are **5 failures in 15 minutes per user**, **4 times that per IP**, **5 accounts per IP per day**, and **10 claims per hour**. | Environment configuration allows operational tuning without code changes while retaining safe defaults. |
+| A44 | Flags are **advisory**. Only an admin decision (**dismiss**, **confirm**, **ban**) changes an account. | Prevents automatic actions from turning suspicious activity into account penalties. |
 
 ## 6. Admin and monitoring
 
@@ -63,6 +65,11 @@ The assignment leaves several gaps in the requirements. This file lists every ga
 | A30 | Dashboard metrics are: coupons claimed vs unclaimed, points issued vs spent, active customers, reward claims by status, and a claims trend over time. | Enough for the owner to monitor the program. |
 | A31 | Every admin action and every claim is written to `audit_logs`. | Accountability and later investigation. |
 | A32 | CSV imports are **validated**: reject duplicate `coupon_hash`, duplicate `invoice_no`, unknown `product_id`, and a `product_id` already linked to another invoice. | The company enters data by hand, so bad data is likely. |
+| A38 | CSV imports are **all-or-nothing**. Any invalid row rejects the whole file, so the admin never has to repair a partial import. | Atomic validation avoids inconsistent partial data and gives the admin a clean file-level failure. |
+| A39 | Imports **only add data**. Existing products, coupons and invoices are never overwritten, and corrections are made directly in the database. | Prevents accidental mutation of operational data during imports. |
+| A40 | Each file is limited to **2 MB and 5,000 rows**. Coupon codes must be **8 to 64 letters or digits**, and spaces and dashes are ignored. | Bounds import size and defines a consistent coupon-code format. |
+| A41 | The invoice CSV has **one row per product unit sold**. Invoice details must be identical across the rows of one invoice, or left blank after the first. | Supports multi-unit invoices while keeping CSV entry simple. |
+| A42 | Invoice numbers are matched **exactly, including letter case**. | Avoids silently merging distinct invoice identifiers that differ only by case. |
 
 ## 7. Technical and scope
 
